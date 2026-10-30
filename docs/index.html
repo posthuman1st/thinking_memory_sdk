@@ -373,7 +373,7 @@ html{scroll-behavior:smooth}
     Thinking Memory
   </a>
   <div class="links"><a href="#demo">Live demo</a><a href="#how">How it thinks</a><a href="#proof">Proof</a><a href="#business">For business</a></div>
-  <a class="btn primary" href="#early-access">Early access</a>
+  <a class="btn primary" href="#early-access" data-cta="header">Request early access</a>
 </div></nav>
 
 <main class="wrap" id="top">
@@ -384,7 +384,7 @@ html{scroll-behavior:smooth}
     <h1>Memory for AI, <em>faster than the internet.</em></h1>
     <p class="lede">A packet needs tens of milliseconds to cross the internet. Before it lands, this memory has answered your question from all of Wikipedia and shown every step. An 8-core laptop answers <b>1,300 questions a second</b>, and the right answer comes first in 2 of 3. <b>No network. No LLM.</b></p>
     <div class="ctas">
-      <a class="btn primary" href="#early-access">Get early access →</a>
+      <a class="btn primary" href="#early-access" data-cta="hero">Request early access →</a>
       <a class="btn" href="#proof">See the measurements</a>
     </div>
   </div>
@@ -763,8 +763,9 @@ html{scroll-behavior:smooth}
       </div>
       <div class="field"><label for="s-usecase">Your use case</label><textarea id="s-usecase" name="usecase" rows="3" placeholder="A knowledge base, a customer graph, an agent’s memory… (optional)"></textarea></div>
       <input type="text" id="s-gotcha" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
+      <input type="hidden" id="s-source" name="source" value="direct">
       <div class="signup-actions">
-        <button class="btn primary" type="submit" id="s-submit">Sign up for a call</button>
+        <button class="btn primary" type="submit" id="s-submit">Request early access</button>
         <span class="signup-note">We reply by email to set a time. No newsletter.</span>
       </div>
       <p class="signup-error" id="s-error" hidden></p>
@@ -804,7 +805,7 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
     if(url){a.href=url;a.target='_blank';a.rel='noopener'}else{a.setAttribute('aria-disabled','true');a.href='#early-access'}
     box.appendChild(a);
   });
-  const cta=document.createElement('a'); cta.className='btn primary'; cta.href='#early-access'; cta.textContent='Sign up for a call'; box.appendChild(cta);
+  const cta=document.createElement('a'); cta.className='btn primary'; cta.href='#early-access'; cta.textContent='Request early access'; box.appendChild(cta);
 })();
 
 /* early-access sign-up */
@@ -840,10 +841,12 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
       const pre=document.createElement('pre'); pre.className='chain'; pre.style.whiteSpace='pre-wrap'; pre.textContent=lines; extra.appendChild(pre);
     } else { p.textContent='Sign-ups aren’t connected yet, so nothing was sent. Watch the GitHub repository for the launch.'; extra.appendChild(p); }
   }
+  let signupSource='direct';
+  document.querySelectorAll('a[data-cta]').forEach(a=>a.addEventListener('click',()=>{signupSource=a.dataset.cta||'direct';f('s-source').value=signupSource}));
   document.querySelectorAll('a[data-interest]').forEach(a=>a.addEventListener('click',()=>{const sel=f('s-interest');if(sel)sel.value=a.dataset.interest}));
   form.addEventListener('submit',async ev=>{
     ev.preventDefault(); err.hidden=true;
-    const payload={name:f('s-name').value.trim(),email:f('s-email').value.trim(),company:f('s-company').value.trim(),interest:f('s-interest').value,usecase:f('s-usecase').value.trim(),at:new Date().toISOString()};
+    const payload={name:f('s-name').value.trim(),email:f('s-email').value.trim(),company:f('s-company').value.trim(),interest:f('s-interest').value,usecase:f('s-usecase').value.trim(),source:f('s-source').value||signupSource,at:new Date().toISOString()};
     const bad=[]; if(!payload.name)bad.push('s-name'); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email))bad.push('s-email');
     document.querySelectorAll('.field').forEach(x=>x.classList.remove('bad')); bad.forEach(id=>f(id).closest('.field').classList.add('bad'));
     if(bad.length){err.textContent='Add your name and a valid work email so we can reach you.';err.hidden=false;f(bad[0]).focus();return}
@@ -862,9 +865,11 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
           throw e;
         }
         showDone('We’ll email you within a few days to book the call.');
+        window.dispatchEvent(new CustomEvent('thinking-memory:early-access-submitted',{detail:{source:payload.source}}));
       } else if(store){
         await store.db.doc('signups/'+store.id).set(payload);
         showDone('We’ll email you within a few days to book the call.');
+        window.dispatchEvent(new CustomEvent('thinking-memory:early-access-submitted',{detail:{source:payload.source}}));
       } else {
         showDone('Thanks. One more step:','Almost there.'); showContactFallback(payload); return;
       }
@@ -872,7 +877,7 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
     }catch(e){
       if(store&&e&&e.code==='invalid_argument'){store=null;showDone('Thanks. One more step:','Almost there.');showContactFallback(payload);return}
       err.textContent=(e&&e.userMessage)||'That didn’t go through. Try again in a moment.'; err.hidden=false;
-    }finally{ submit.disabled=false; submit.textContent='Sign up for a call'; }
+    }finally{ submit.disabled=false; submit.textContent='Request early access'; }
   });
 })();
 
@@ -1057,9 +1062,12 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
     const parts=STAGE.filter(([k])=>t[k]>=0.05).map(([k,w])=>`${w} ${t[k]<10?t[k].toFixed(1):Math.round(t[k])}`);
     return parts.length?`<div class="meta timing" title="Time inside the engine, by stage, in ms. Network and connection are not in it.">${parts.join(' · ')} ms</div>`:'';
   }
+  function hasAnswerEvidence(a){
+    return Array.isArray(a.evidence)&&a.evidence.length>0&&a.evidence.every(e=>Array.isArray(e)&&e.length>=4&&e.slice(0,4).every(v=>v!=null&&String(v).trim()!==''));
+  }
   function answerHTML(a,rtt){
-    if(a.kind==='none'||!(a.values||[]).length&&!a.evidence.length)
-      return `<div class="a">${esc(a.text||"I don't know.")}</div><div class="meta"><span>${a.guess?'The engine found an answer but trusts it too little to say, so it tells you instead of guessing.':'Nothing in the graph answers that yet.'} Try a person, a place, a film or a company.</span></div>`;
+    if(a.kind==='none'||!hasAnswerEvidence(a))
+      return `<div class="a">I don't know.</div><div class="meta"><span>Nothing in the graph answers that yet. Try a person, a place, a film or a company.</span></div>`;
     const steps=(a.steps||[]).length?`<div class="chain">${a.steps.map(t=>`<div class="row"><span class="n">›</span><span>${esc(t)}</span></div>`).join('')}</div>`:'';
     const ids=(a.values||[]).map(v=>wd(v.id)).filter(Boolean).slice(0,3);
     const what=(a.steps||[]).length?`program · ${a.steps.length} steps`:a.evidence.length+(a.evidence.length>1?' hops':' hop');
@@ -1128,6 +1136,7 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
     try{await connect()}catch(code){pending.el.innerHTML=`<div class="a">${esc(failText(code))}</div>`;pill.textContent='Live demo · offline';finish();return}
     startRow.hidden=true;
     pending.t0=performance.now();
+    window.dispatchEvent(new CustomEvent('thinking-memory:live-demo-question',{detail:{text}}));
     ws.send(JSON.stringify({type:'utterance',text}));
   }
   form.addEventListener('submit',ev=>{ev.preventDefault();ask(input.value)});
@@ -1138,6 +1147,7 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
     startBtn.disabled=true; startBtn.textContent='Connecting…';
     const t0=performance.now();
     try{await connect()}catch(code){startBtn.disabled=false;startBtn.textContent='Try again';startNote.textContent=failText(code);pill.textContent='Live demo · offline';return}
+    startBtn.disabled=false; startBtn.textContent='Connected';
     startRow.hidden=true; pill.textContent='Live · nothing stored';
     add(`<div class="a">Connected in ${Math.round(performance.now()-t0)} ms. Ask anything, or pick a question below.</div>`,'bot note');
     input.focus({preventScroll:true});
