@@ -1134,10 +1134,15 @@ const CONFIG = { app:"", github:"https://github.com/posthuman1st/thinking_memory
   // the start button: opens the connection before the first question (the engine itself is kept warm on the
   // server); typing a question first works too
   async function start(){
-    if(ws&&ws.readyState===WebSocket.OPEN)return;
-    startBtn.disabled=true; startBtn.textContent='Connecting…';
+    if(startRow.hidden)return;
     const t0=performance.now();
-    try{await connect()}catch(code){startBtn.disabled=false;startBtn.textContent='Try again';startNote.textContent=failText(code);pill.textContent='Live demo · offline';return}
+    if(ws&&ws.readyState===WebSocket.OPEN){
+      startBtn.disabled=false; startBtn.textContent='Connected';
+    } else {
+      startBtn.disabled=true; startBtn.textContent='Connecting…';
+      try{await connect()}catch(code){startBtn.disabled=false;startBtn.textContent='Try again';startNote.textContent=failText(code);pill.textContent='Live demo · offline';return}
+      startBtn.disabled=false; startBtn.textContent='Connected';
+    }
     startRow.hidden=true; pill.textContent='Live · nothing stored';
     add(`<div class="a">Connected in ${Math.round(performance.now()-t0)} ms. Ask anything, or pick a question below.</div>`,'bot note');
     input.focus({preventScroll:true});
